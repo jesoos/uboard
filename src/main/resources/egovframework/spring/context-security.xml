@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:security="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+					http://www.springframework.org/schema/beans/spring-beans.xsd
+					http://www.springframework.org/schema/security
+					http://www.springframework.org/schema/security/spring-security-3.2.xsd">
+					
+	<security:http pattern="/index.jsp" security="none" />
+	<security:http pattern="/css/**" security="none" />
+	<security:http pattern="/img/**" security="none" />
+	<security:http pattern="/js/**" security="none" />
+	<security:http pattern="/font/**" security="none" />
+	<security:http pattern="/mobile/css/**" security="none" />
+	<security:http pattern="/mobile/img/**" security="none" />
+	<security:http pattern="/mobile/js/**" security="none" />
+	<security:http pattern="/mobile/font/**" security="none" />
+	<security:http pattern="/admin/css/**" security="none" />
+	<security:http pattern="/admin/img/**" security="none" />
+	<security:http pattern="/admin/js/**" security="none" />
+	<security:http pattern="/admin/font/**" security="none" />
+	<security:http pattern="\A/WEB-INF/jsp/.*\Z" request-matcher="regex" security="none"/>
+	<security:http pattern="/resources/**" security="none" />
+
+	<security:http pattern="/mobile/**" auto-config="true" disable-url-rewriting="true" use-expressions="true">
+    	<security:intercept-url pattern="/mobile/login*" access="isAnonymous()" />
+    	<security:intercept-url pattern="/mobile/logout*" access="isAnonymous()" />
+    	<security:intercept-url pattern="/mobile/**" access="hasRole('ROLE_USER')" />
+
+		<security:logout invalidate-session="true"
+			delete-cookies="JSESSIONID,SPRING_SECURITY_REMEMBER_ME_COOKIE"
+			logout-success-url="/mobile/logout.do"
+			logout-url="/mobile/spring_logout"/>
+		<security:remember-me key="wmoskey" token-validity-seconds="2419200"/> <!-- 4 주 -->
+	    <security:form-login login-page="/mobile/login.do"
+			authentication-failure-url="/mobile/login.do?fail=true"
+			login-processing-url="/mobile/spring_login"    
+	        default-target-url="/mobile/mainView.do"
+	        username-parameter="loginid"
+			password-parameter="loginpwd"/>
+		<security:access-denied-handler error-page="/common/access_denied.jsp"/>
+		<security:custom-filter after="EXCEPTION_TRANSLATION_FILTER" ref="ajaxSessionTimeoutFilter"/>
+	</security:http>
+
+	<security:http auto-config="true" use-expressions="true" >
+		<security:form-login login-page="/web/login.do"
+			authentication-failure-url="/web/login.do?fail=true"
+			default-target-url="/web/mainView.do"
+			always-use-default-target='false' 
+			username-parameter="loginid"
+			password-parameter="loginpwd"
+			authentication-success-handler-ref="customAuthenticationSuccessHandler"
+			/>
+		<security:logout invalidate-session="true"
+			delete-cookies="JSESSIONID,SPRING_SECURITY_REMEMBER_ME_COOKIE"
+			logout-success-url="/web/logout.do"/>
+		<security:remember-me key="wmoskey" token-validity-seconds="2419200"/> <!-- 4 주 -->
+<!-- 		<security:intercept-url pattern="/web/admin/**" access="hasRole('ROLE_ADMIN')" /> -->
+		<security:intercept-url pattern="/web/login.do" access="isAnonymous()" />
+		<security:intercept-url pattern="/web/logout.do" access="isAnonymous()" />
+		<!-- <security:intercept-url pattern="/web/loginFail.do" access="isAnonymous()" /> -->
+<!-- 		<security:intercept-url pattern="/index.*" access="hasAnyRole('ROLE_ADMIN','ROLE_USER')" /> -->
+		<security:intercept-url pattern="/web/**" access="hasAnyRole('ROLE_ADMIN','ROLE_USER')" />
+		<security:intercept-url pattern="/admin/**" access="hasAnyRole('ROLE_ADMIN','ROLE_USER')" />
+		<security:intercept-url pattern="/tv/**" access="hasAnyRole('ROLE_ADMIN','ROLE_USER')" />
+		<!-- <security:intercept-url pattern="/web/**" access="permitAll" /> -->
+		<security:access-denied-handler error-page="/common/access_denied.jsp"/>
+		<security:custom-filter after="EXCEPTION_TRANSLATION_FILTER" ref="ajaxSessionTimeoutFilter"/>
+	</security:http>
+
+<!-- 	<security:authentication-manager> -->
+<!-- 		<security:authentication-provider> -->
+<!-- 			<security:user-service> -->
+<!-- 				<security:user name="user" password="123" authorities="ROLE_USER" /> -->
+<!-- 				<security:user name="admin" password="123" authorities="ROLE_ADMIN,ROLE_USER" /> -->
+<!-- 			</security:user-service> -->
+<!-- 		</security:authentication-provider> -->
+<!-- 	</security:authentication-manager> -->
+
+<!-- 	<security:authentication-manager> -->
+<!--         <security:authentication-provider user-service-ref="loginService"/> -->
+<!--     </security:authentication-manager> -->
+    
+<!-- 		<security:jdbc-user-service data-source-ref="dataSource" -->
+<!-- 			users-by-username-query="select no, password,'1' as enabled from user0 where id=?" -->
+<!-- 			authorities-by-username-query="select no, authority from user_auth where no=?"/> -->
+<!-- 		</security:authentication-provider> -->
+
+<!-- 	<security:authentication-manager> -->
+<!-- 		<security:authentication-provider> -->
+<!-- 		<security:jdbc-user-service data-source-ref="dataSource" -->
+<!-- 			users-by-username-query="select  userCode as username , psitnCode as password, '1' as enabled from user where userCode=?" -->
+<!-- 			authorities-by-username-query="select 'ROLE_USER', 'ROLE_USER' as authority from user where userCode=?"/> -->
+<!-- 		</security:authentication-provider> -->
+<!-- 	</security:authentication-manager> -->
+
+
+	<security:authentication-manager>
+        <security:authentication-provider user-service-ref="userService"/>
+    </security:authentication-manager>
+
+	<bean id="userService" class="com.hanwha.uboard.security.UserServiceImpl" />
+
+	<bean id="customAuthenticationSuccessHandler" class="com.hanwha.uboard.security.handler.CustomAuthenticationSuccessHandler">
+	    <property name="targetUrlParameter" value="loginRedirect" />
+	    <property name="useReferer" value="false" />
+	    <property name="defaultUrl" value="/index.jsp" />
+	</bean>
+
+	<bean id="ajaxSessionTimeoutFilter" class="com.hanwha.uboard.security.AjaxSessionTimeoutFilter">
+	        <property name="ajaxHeader" value="AJAX" />
+	</bean>
+	
+</beans>

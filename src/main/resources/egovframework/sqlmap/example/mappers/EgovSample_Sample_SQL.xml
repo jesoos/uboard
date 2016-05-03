@@ -1,0 +1,892 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanwha.uboard.module.service.impl.SampleMapper">
+
+	<resultMap id="sample" type="com.hanwha.uboard.module.service.SampleVO">
+		<result property="id" column="id"/>
+		<result property="name" column="name"/>
+		<result property="description" column="description"/>
+		<result property="useYn" column="use_yn"/>
+		<result property="regUser" column="reg_user"/>
+	</resultMap>
+
+	<insert id="insertSample" parameterType="SampleVO">
+
+			INSERT INTO SAMPLE
+				( ID
+				  , NAME
+				  , DESCRIPTION
+				  , USE_YN
+				  , REG_USER )
+			VALUES ( #{id}
+				  , #{name}
+				  , #{description}
+				  , #{useYn}
+				  , #{regUser} )
+
+	</insert>
+
+	<update id="updateSample">
+
+			UPDATE SAMPLE
+			SET ID=#{id}
+				, NAME=#{name}
+				, DESCRIPTION=#{description}
+				, USE_YN=#{useYn}
+				  WHERE ID=#{id}
+
+	</update>
+
+	<delete id="deleteSample">
+
+			DELETE FROM SAMPLE
+			WHERE ID=#{id}
+
+	</delete>
+
+	<select id="selectSample" resultMap="sample">
+
+			SELECT
+				ID, NAME, DESCRIPTION, USE_YN, REG_USER
+			FROM SAMPLE
+			WHERE ID=#{id}
+
+	</select>
+
+	<select id="selectSampleList" parameterType="searchVO" resultType="egovMap">
+
+			SELECT
+				ID, NAME, DESCRIPTION, USE_YN, REG_USER
+			FROM SAMPLE
+			WHERE 1=1
+			<if test="searchKeyword != ''">
+		        <choose>
+		            <when test="searchCondition == '0'">
+						AND	ID = #{searchKeyword}
+					</when>
+		            <when test="searchCondition == '1'">
+						AND	NAME LIKE CONCAT('%',#{searchKeyword},'%')
+					</when>
+				</choose>
+			</if>
+			ORDER BY ID ASC
+			LIMIT #{recordCountPerPage} OFFSET #{firstIndex}
+	</select>
+
+	<select id="selectSampleListTotCnt" parameterType="searchVO" resultType="int">
+			SELECT COUNT(*) totcnt
+			FROM SAMPLE
+			WHERE 1=1
+			<if test="searchKeyword != ''">
+		        <choose>
+		            <when test="searchCondition == '0'">
+						AND	ID = #{searchKeyword}
+					</when>
+		            <when test="searchCondition == '1'">
+						AND	NAME LIKE CONCAT('%',#{searchKeyword},'%')
+					</when>
+				</choose>
+			</if>
+	</select>
+
+	<select id="selectUnitList" parameterType="searchVO" resultType="egovMap">
+			SELECT 
+				a.idUnit,
+			    a.psitnCode,
+			    a.psitnName,
+			    a.unitCode,
+			    a.unitName,
+				a.progress,
+			    a.signalCode,
+			    a.leader,
+			    a.captain,
+			    a.fromDate,
+			    a.toDate,
+			    a.leaderCode,
+			    a.captainCode,
+			    a.showYn,
+			    IFNULL(a.regUser,'') as regUser,
+			    IFNULL(a.regDate,'') as regDate,
+			    IFNULL(a.updatedUser,'') as updatedUser,
+			    IFNULL(a.updatedDate,'') as updatedDate,
+			    b.idUser as leaderIdUser,
+			    b.userEmail as leaderEmail,
+			    b.userTel as leaderTel,
+			    b.userStateCode as leaderStateCode,
+			    b.userStateFrom as leaderStateFrom,
+			    b.userStateTo as leaderStateTo,
+			    b.userStateTime as leaderStateTime,
+			    c.idUser as captainIdUser,
+			    c.userEmail as captainEmail,
+			    c.userTel as captainTel,
+			    c.userStateCode as captainStateCode,
+			    c.userStateFrom as captainStateFrom,
+			    c.userStateTo as captainStateTo,
+			    c.userStateTime as captainStateTime
+			FROM Unit AS a LEFT JOIN User AS b
+			     ON a.leaderCode = b.userCode
+			     LEFT JOIN User AS c
+			     ON a.captainCode = c.userCode
+<!-- 				Unit a, User b, User c -->
+			WHERE 1=1
+<!-- 			AND (a.leaderCode = b.userCode AND a.captainCode = c.userCode) -->
+			<if test="searchKeyword != ''">
+		        <choose>
+		            <when test="searchCondition == 'all'">
+							AND	(LOWER(unitName) LIKE CONCAT('%',LOWER(#{searchKeyword}),'%')
+							OR LOWER(leader) LIKE CONCAT('%',LOWER(#{searchKeyword}),'%')
+							OR LOWER(captain) LIKE CONCAT('%',LOWER(#{searchKeyword}),'%'))
+					</when>
+		            <when test="searchCondition == 'unit'">
+						AND	LOWER(unitName) LIKE CONCAT('%',LOWER(#{searchKeyword}),'%')
+					</when>
+		            <when test="searchCondition == 'leader'">
+						AND LOWER(leader) LIKE CONCAT('%',LOWER(#{searchKeyword}),'%')	
+					</when>
+		            <when test="searchCondition == 'captain'">
+						AND	LOWER(captain) LIKE CONCAT('%',LOWER(#{searchKeyword}),'%')
+					</when>
+				</choose>
+			</if>
+<!-- 			<if test="signalCode != 'all'"> -->
+<!-- 					AND	LOWER(signalCode) = LOWER(#{signalCode}) -->
+<!-- 			</if> -->
+			<if test="fromDate != '' and toDate != ''">
+					<!--  AND	fromDate BETWEEN #{fromDate} AND #{toDate} -->
+<!-- 					AND ((#{fromDate} BETWEEN fromDate AND toDate) -->
+<!--       					OR  (#{toDate} BETWEEN fromDate AND toDate)) -->
+			</if>
+			<if test="idUnit > 0">
+					AND idUnit = #{idUnit}
+			</if>
+	        <choose>
+	            <when test="unitAuthorities == 'MEMBER'">
+					AND	unitCode IN (
+						SELECT unitCode FROM UnitPartner
+							where userCode = #{userCode}
+						union
+						SELECT unitCode FROM TaskPartner
+							where userCode = #{userCode})
+				</when>
+	            <when test="unitAuthorities == 'LEADER' or unitAuthorities == 'POWERUSER'">
+	            	AND 1=1
+				</when>
+	            <when test="unitAuthorities == 'CAPTAIN'">
+					AND	psitnCode IN (
+						SELECT psitnCode FROM Unit
+							where captainCode = #{userCode})
+				</when>
+			</choose>
+	</select>
+	<select id="selectTaskList" parameterType="searchVO" resultType="egovMap">
+			SELECT
+				a.idTask,
+			    a.unitCode,
+			    a.taskCode,
+			    a.taskName,
+				a.progress,
+			    a.signalCode,
+			    a.issueText,
+			    a.rprsnttvEmplNo,
+			    a.fromDate,
+			    a.toDate,
+			    a.alramCode,
+			    a.showYn,
+                b.idReport,
+                b.unitCode,
+                b.taskCode,
+                b.repoDate,
+                b.repoUserCode,
+                b.repoMembers,
+                b.repoDateHour,
+                b.repoDateMin,
+                b.repoDesc,
+                b.confirmYn
+			FROM Task as a left join Report as b 
+				on a.unitCode = b.unitCode AND a.taskCode = b.taskCode AND a.idTask = b.idTask
+			WHERE 1=1
+			<if test="searchKeyword != ''">
+		        <choose>
+ 		            <when test="searchCondition == 'all' or searchCondition == 'task'">
+						AND	LOWER(a.taskName) LIKE CONCAT('%',LOWER(#{searchKeyword}),'%')
+					</when>
+				</choose>
+			</if>
+			<if test="fromDate != '' and toDate != ''">
+<!-- 					AND	a.fromDate BETWEEN #{fromDate} AND #{toDate} -->
+<!-- 					AND ((#{fromDate} BETWEEN a.fromDate AND a.toDate) -->
+<!--       					OR  (#{toDate} BETWEEN a.fromDate AND a.toDate)) -->
+<!-- 					AND (    (a.fromDate BETWEEN #{fromDate} AND a.toDate) -->
+<!--       					  OR (a.toDate BETWEEN a.fromDate AND #{toDate})) -->
+					AND (    (#{fromDate} BETWEEN a.fromDate  AND a.toDate )
+      					  OR (a.fromDate  BETWEEN #{fromDate} AND #{toDate})
+      					  OR (a.toDate    BETWEEN #{fromDate} AND #{toDate})
+      					  OR (#{toDate}   BETWEEN a.fromDate  AND a.toDate ))
+			</if>
+			<if test="idUnit > 0">
+					AND a.UnitCode = #{idUnit}
+			</if>
+			<if test="showYn != 'all'">
+					AND a.showYn = #{showYn}
+			</if>
+			ORDER BY a.fromDate DESC
+	</select>
+	<select id="getUserPwd" parameterType="java.lang.String" resultType="java.lang.String">
+			SELECT userpwd FROM DashBoardMember WHERE userid=#{userid}
+	</select>
+	
+	<select id="selectUserList" parameterType="searchVO" resultType="egovMap">
+
+			SELECT
+				b.idUser,
+				a.userCode,
+				a.idTaskPartner,
+				a.unitCode,
+				IFNULL(a.idTask,0) as idTask,
+				a.taskCode,
+				a.repYn,		
+			    b.userName,
+			    b.userEmail,
+				b.userTel,
+			    b.userStateCode,
+			    b.userStateFrom,
+			    b.userStateTo,
+			    b.userStateTime
+			FROM TaskPartner a, User b
+			WHERE 1=1
+			AND a.userCode = b.userCode
+			<if test="searchKeyword != ''">
+		        <choose>
+		            <when test="searchCondition == 'all'">
+						AND	(userName LIKE CONCAT('%',#{searchKeyword},'%')
+							OR userName = #{searchKeyword}
+							OR a.userCode = #{searchKeyword}
+							OR userEmail = #{searchKeyword}
+							OR userTel = #{searchKeyword})
+					</when>
+		            <when test="searchCondition == 'userName'">
+						AND	unitName LIKE CONCAT('%',#{searchKeyword},'%')
+					</when>
+		            <when test="searchCondition == 'userCode'">
+						AND	a.userCode = #{searchKeyword}
+					</when>
+		            <when test="searchCondition == 'userEmail'">
+						AND	LOWER(userEmail) = LOWER(#{searchKeyword})
+					</when>
+					<when test="searchCondition == 'userTel'">
+						AND	userTel = #{searchKeyword}
+					</when>
+				</choose>
+			</if>
+	</select>
+	
+	<insert id="insertUnit" parameterType="SampleVO">
+<!-- 			<bind name="nowDate" value=""/> -->
+			INSERT INTO Unit
+				(   
+					idUnit,
+					psitnCode,
+					psitnName,
+					unitCode,
+					unitName,
+					leader,
+					captain,
+					fromDate,
+					toDate,
+					leaderCode,
+					captainCode,
+					showYn,
+					signalCode,
+					regUser,
+					regDate,
+					updatedUser,
+					updatedDate)
+			VALUES ( 
+					 #{idUnit}
+					,#{psitnCode}
+					,#{psitnName}
+		        <choose>
+		            <when test="unitCode == ''">
+					,#{idUnit}
+					</when>
+		            <when test="unitCode != ''">
+					,#{unitCode}
+					</when>
+				</choose>
+					,#{unitName}
+					,#{leader}
+					,#{captain}
+					,#{fromDate}
+					,#{toDate}
+					,#{leaderCode}
+					,#{captainCode}
+					,#{showYn}
+					,#{signalCode}
+					,#{regUser}
+					,now()
+					,#{updatedUser}
+					,now())
+	</insert>
+	<update id="updateUnit">
+				UPDATE Unit
+				SET
+				      psitnCode = #{psitnCode},
+				      psitnName = #{psitnName},
+				      unitCode = #{unitCode},
+				      unitName = #{unitName},
+				      progress = #{progress},
+				      signalCode = #{signalCode},
+				      leader = #{leader},
+				      captain = #{captain},
+				      fromDate = #{fromDate},
+				      toDate = #{toDate},
+				      leaderCode = #{leaderCode},
+				      captainCode = #{captainCode},
+				      showYn = #{showYn},
+					  updatedUser = #{updatedUser},
+				      updatedDate = now()
+				WHERE idUnit   = #{idUnit} 
+				  AND unitCode = #{unitCode};
+	</update>
+
+ 	<insert id="insertTask" parameterType="SampleVO" useGeneratedKeys="true" keyProperty="idTask">
+ 			INSERT INTO Task
+				( 
+				unitCode,
+				taskCode,
+				taskName,
+				progress,
+				signalCode,
+				alramCode,
+				issueText,
+				fromDate,
+				toDate,
+				rprsnttvEmplNo)
+			VALUES
+				( 
+				#{unitCode},
+		        <choose>
+		            <when test="taskCode == ''">
+					#{idTask},
+					</when>
+		            <when test="taskCode != ''">
+					#{taskCode},
+					</when>
+				</choose>
+				#{taskName},
+				#{progress},
+				#{signalCode},
+				#{alramCode},
+				#{issueText},
+				#{fromDate},
+				#{toDate},
+				#{rprsnttvEmplNo})
+	</insert>
+
+	<update id="updateTask">
+				UPDATE Task
+				SET 
+				      unitCode = #{unitCode},
+				      taskCode = #{taskCode},
+				      taskName = #{taskName},
+				      progress = #{progress},
+				      signalCode = #{signalCode},
+				      alramCode = #{alramCode},
+				      issueText = #{issueText},
+				      fromDate = #{fromDate},
+				      toDate = #{toDate},
+				      showYn = #{showYn},
+				      rprsnttvEmplNo = #{rprsnttvEmplNo}
+				WHERE idTask = #{idTask};
+	</update>
+	
+	<select id="selectUser" resultMap="sample">
+
+			SELECT
+				idUser,
+				IFNULL(fbID,'') as fbID,
+				userCode,
+				userName,
+				userEmail,
+				userTel,
+				userStateCode,
+				userStateFrom,
+				userStateTo,
+				userStateTime,
+				IFNULL(accessToken,'') as accessToken,
+				IFNULL(unitAuthorities,'') as unitAuthorities,
+				loginDate
+			FROM User
+			WHERE 1=1
+		        <choose>
+		            <when test="idUser != 0">
+		            	AND	idUser=#{idUser}
+					</when>
+		            <when test="fbID != null">
+						AND	fbID=#{fbID}
+					</when>
+					<when test="userCode != null">
+						AND	userCode=#{userCode}
+					</when>
+				</choose>
+	</select>
+	
+	<select id="selectAdminUserList" parameterType="searchVO" resultType="egovMap">
+			SELECT
+				idUser,
+				IFNULL(fbID,'') as fbID,
+				userCode,
+				userName,
+				userEmail,
+				userTel,
+				userStateCode,
+				userStateFrom,
+				userStateTo,
+				userStateTime,
+				IFNULL(accessToken,'') as accessToken,
+				IFNULL(unitAuthorities,'') as unitAuthorities,
+				loginDate
+			FROM User
+			WHERE 1=1
+			<if test="searchKeyword != ''">
+		        <choose>
+		            <when test="searchCondition == 'all'">
+						AND	(userName LIKE CONCAT('%',#{searchKeyword},'%')
+							OR userName = #{searchKeyword}
+							OR userCode = #{searchKeyword}
+							OR userEmail = #{searchKeyword}
+							OR userTel = #{searchKeyword})
+					</when>
+		            <when test="searchCondition == 'userName'">
+						AND	userName LIKE CONCAT('%',#{searchKeyword},'%')
+					</when>
+		            <when test="searchCondition == 'userCode'">
+						AND	userCode = #{searchKeyword}
+					</when>
+		            <when test="searchCondition == 'userEmail'">
+						AND	LOWER(userEmail) = LOWER(#{searchKeyword})
+					</when>
+					<when test="searchCondition == 'userTel'">
+						AND	userTel = #{searchKeyword}
+					</when>
+				</choose>
+			</if>
+			<!--
+			ORDER BY ID ASC
+			LIMIT #{recordCountPerPage} OFFSET #{firstIndex} -->
+	</select>
+	
+	<insert id="insertUser" parameterType="SampleVO">
+ 			INSERT INTO User
+				( 
+				userCode,
+				userName,
+				userEmail,
+				userTel,
+				userStateCode,
+				userStateFrom,
+				userStateTo,
+				userStateTime
+				)
+			VALUES
+				( 
+				#{userCode},
+				#{userName},
+				#{userEmail},
+				#{userTel},
+				#{userStateCode},
+				#{userStateFrom},
+				#{userStateTo},
+				#{userStateTime}
+				)
+	</insert>
+
+	<update id="updateUser">
+				UPDATE User
+				SET 
+					  fbID = #{fbID},
+<!-- 				      userCode = #{userCode}, -->
+				      userName = #{userName},
+				      userEmail = #{userEmail},
+				      userTel = #{userTel},
+				      userStateCode = #{userStateCode},
+				      userStateFrom = #{userStateFrom},
+				      userStateTo = #{userStateTo},
+				      userStateTime = #{userStateTime},
+				      <if test="loginDate == 'NOW'">
+				      loginDate = now(),
+				      </if>
+				      unitAuthorities = #{unitAuthorities},
+				      accessToken = #{accessToken}
+				WHERE idUser   = #{idUser}
+				  AND userCode = #{userCode};
+	</update>
+
+	<delete id="deleteUser">
+			DELETE FROM User
+			WHERE idUser   = #{idUser}
+			  AND userCode = #{userCode};
+	</delete>
+	
+	<insert id="insertReport" parameterType="SampleVO">
+ 			INSERT INTO Report
+				( 
+<!-- 				idReport, -->
+				unitCode,
+				idTask,
+				taskCode,
+				repoDate,
+				repoDateHour,
+				repoDateMin,
+				repoUserCode,
+				repoMembers,
+				repoDesc,
+				confirmYn,
+				showYn
+				)
+			VALUES
+				( 
+<!-- 				#{idReport}, -->
+				#{unitCode},
+				#{idTask},
+				#{taskCode},
+				#{repoDate},
+				#{repoDateHour},
+				#{repoDateMin},
+				#{repoUserCode},
+				#{repoMembers},
+				#{repoDesc},
+				#{confirmYn},
+				#{showYn}
+				)
+	</insert>
+	
+	<update id="updateReport">
+				UPDATE Report
+				SET 
+<!-- 				      unitCode = #{unitCode}, -->
+<!-- 				      taskCode = #{taskCode}, -->
+				      repoDate = #{repoDate},
+				      repoDateHour = #{repoDateHour},
+				      repoDateMin = #{repoDateMin},
+				      repoUserCode = #{repoUserCode},
+				      repoMembers = #{repoMembers},
+				      repoDesc = #{repoDesc},
+				      confirmYn = #{confirmYn}		      
+				WHERE idReport = #{idReport}
+				  AND unitCode = #{unitCode}
+				  AND idTask   = #{idTask}
+				  AND taskCode = #{taskCode};
+	</update>
+
+	<delete id="deleteReport">
+			DELETE FROM Report
+			WHERE idReport = #{idReport}
+			  AND unitCode = #{unitCode}
+			  AND idTask   = #{idTask}
+			  AND taskCode = #{taskCode};
+	</delete>
+
+	<select id="selectReport" resultMap="sample">
+			SELECT
+				idReport,
+				unitCode,
+				idTask,
+				taskCode,
+				repoDate,
+				repoDateHour,
+				repoDateMin,
+				repoUserCode,
+				repoMembers,
+				repoDesc,
+				confirmYn
+			FROM Report
+			WHERE idReport = #{idReport}
+			  AND unitCode = #{unitCode}
+			  AND idTask   = #{idTask}
+			  AND taskCode = #{taskCode};
+	</select>
+	
+	<select id="selectAdminReportList" parameterType="searchVO" resultType="egovMap">
+<!-- 			SELECT -->
+<!-- 				b.idReport, -->
+<!-- 				a.psitnName, -->
+<!-- 				a.unitName, -->
+<!-- 				c.userName, -->
+<!-- 				a.unitCode, -->
+<!-- 				b.repoDate, -->
+<!-- 				b.repoDateHour, -->
+<!-- 				b.repoDateMin, -->
+<!-- 				b.repoUserCode, -->
+<!-- 				b.repoMembers, -->
+<!-- 				b.repoDesc, -->
+<!-- 				b.confirmYn -->
+<!-- 			FROM Unit a, Report b, User c -->
+<!-- 			WHERE 1=1 -->
+<!-- 			AND ( a.unitCode = b.unitCode AND b.repoUserCode = c.userCode ) -->
+			SELECT
+				b.idReport,
+				a.psitnName,
+				a.unitName,
+				b.repoUserCode as userName,
+				a.unitCode,
+				b.taskCode,
+				b.repoDate,
+				b.repoDateHour,
+				b.repoDateMin,
+				b.repoUserCode,
+				b.repoMembers,
+				b.repoDesc,
+				b.confirmYn
+			FROM Unit a, Report b
+			WHERE 1=1
+			AND ( a.unitCode = b.unitCode )
+	</select>
+
+	<select id="selectUnitPartnerUserList" parameterType="searchVO" resultType="egovMap">
+			SELECT
+				a.idUnitPartner,
+				a.unitCode,
+				a.userCode,
+				a.typeCode,  <!-- L:리더, C:캡틴, M:담당자 -->
+				b.idUser,
+				b.userName,
+				b.userEmail,
+				b.userTel,
+				b.userStateCode,
+				b.userStateFrom,
+				b.userStateTo,
+				b.userStateTime
+			FROM UnitPartner a, User b
+			WHERE 1=1
+			AND a.unitCode = #{unitCode}
+			AND a.userCode = b.userCode
+			AND a.typeCode not in ('L','C')
+	</select>
+	
+	<insert id="insertUnitPartner" parameterType="SampleVO">
+ 			INSERT INTO UnitPartner
+				( 
+<!-- 				idUnitPartner, -->
+				unitCode,
+				userCode,
+				typeCode  <!-- L:리더, C:캡틴, M:담당자 -->
+				)
+			VALUES
+				(
+<!-- 				#{idUnitPartner}, -->
+				#{unitCode},
+				#{userCode},
+				#{typeCode}
+				)
+	</insert>
+	
+	<update id="updateUnitPartner">
+				UPDATE UnitPartner
+				SET 
+				      unitCode = #{unitCode},
+				      userCode = #{userCode},
+				      typeCode = #{typeCode}
+				WHERE idUnitPartner = #{idUnitPartner}
+				  AND unitCode = #{unitCode};
+				
+	</update>
+
+	<delete id="deleteUnitPartner">
+			DELETE FROM UnitPartner
+			WHERE 1=1
+			<if test="idUnitPartner != -9999">
+			  AND idUnitPartner=#{idUnitPartner}
+			</if>
+			  AND unitCode = #{unitCode};
+	</delete>
+
+	<insert id="insertTaskPartner" parameterType="SampleVO">
+ 			INSERT INTO TaskPartner
+				( 
+				unitCode,
+				idTask,
+				taskCode,
+				userCode,
+				repYn
+				)
+			VALUES
+				( 
+				#{unitCode},
+				#{idTask},
+				#{taskCode},
+				#{userCode},
+				#{repYn}
+				)
+	</insert>
+	
+	<update id="updateTaskPartner">
+				UPDATE TaskPartner
+				SET 
+<!-- 				      unitCode = #{unitCode}, -->
+<!-- 				      taskCode = #{taskCode}, -->
+				      userCode = #{userCode},
+				      repYn = #{repYn}
+				WHERE idTaskPartner = #{idTaskPartner}
+				  AND unitCode = #{unitCode}
+				  AND idTask = #{idTask}
+		  		  AND taskCode = #{taskCode};
+	</update>
+
+	<delete id="deleteTaskPartner">
+
+			DELETE FROM TaskPartner
+			WHERE 1=1
+			<if test="idTaskPartner != -9999">
+				  AND idTaskPartner=#{idTaskPartner}
+			</if>
+				  AND unitCode = #{unitCode}
+				  AND idTask   = #{idTask}
+		  		  AND taskCode = #{taskCode};
+	</delete>
+
+	<select id="selectUnitAuthority" resultMap="sample">
+			SELECT
+				CASE 	a.leaderCode
+						WHEN 'MEMBER' THEN 3
+						WHEN #{userCode} THEN 1
+						ELSE 2
+				END UnitAuthorities
+				FROM (
+					SELECT IFNULL(max(a.leaderCode), 'MEMBER') leaderCode
+							FROM Unit a
+							WHERE 1=1
+								AND  #{userCode} IN (leaderCode,captainCode)
+				                AND  (UTC_DATE() + 0) between fromDate AND toDate
+					UNION
+					SELECT
+							a.leaderCode
+							FROM Unit a
+							WHERE 1=1
+								AND  #{userCode} IN (leaderCode,captainCode)
+				                AND  (UTC_DATE() + 0) between fromDate AND toDate
+					) a
+				ORDER BY UnitAuthorities
+				LIMIT 1
+	</select>
+	<update id="updateUserState">
+				UPDATE User
+				SET 
+				      userStateCode = #{userStateCode},
+				      userStateFrom = #{userStateFrom},
+				      userStateTo = #{userStateTo},
+				      userStateTime = #{userStateTime}
+				WHERE idUser   = #{idUser}
+				  AND userCode = #{userCode};
+	</update>
+
+	<select id="selectNotificationList" parameterType="searchVO" resultType="egovMap">
+			SELECT
+			    idNotification,
+			    idUser,
+			    userCode,
+			    unitCode,
+			    idTask,
+			    taskCode,
+			    confirmYn,
+			    updatedDate,
+			    notiDesc,
+			    notiPsitnName,
+			    notiUnitName,
+			    notiTaskName,
+			    notiTaskFromDate,
+			    notiTaskToDate,
+			    notiCreateDate
+			FROM Notification
+			WHERE 1=1
+<!-- 				AND idUser   = #{idUser} -->
+			  	AND userCode = #{userCode}
+			  <if test="notiCreateDate != ''">
+			  	AND DATE_FORMAT(notiCreateDate,'%Y%m%d') = DATE_FORMAT(CURDATE(),'%Y%m%d') 
+			  </if>
+			  <if test="confirmYn != ''">
+			  	AND confirmYn != #{confirmYn}
+			  </if>
+		  	ORDER BY notiCreateDate DESC, updatedDate DESC, notiTaskFromDate DESC
+		  	
+	</select>
+
+	<insert id="insertNotification" parameterType="SampleVO">
+ 			INSERT INTO Notification
+				( 
+					idUser,
+					userCode,
+					unitCode,
+					idTask,
+					taskCode,
+					<!-- confirmYn, -->
+					updatedDate,
+					<!-- notiDesc, -->
+					notiPsitnName,
+					notiUnitName,
+					notiTaskName,
+					notiTaskFromDate,
+					notiTaskToDate,
+					notiCreateDate
+				)
+			VALUES
+				(
+					#{idUser},
+					#{userCode},
+					#{unitCode},
+					#{idTask},
+					#{taskCode},
+					<!-- #{confirmYn}, -->
+					now(),
+					<!-- #{notiDesc}, -->
+					#{notiPsitnName},
+					#{notiUnitName},
+					#{notiTaskName},
+					#{notiTaskFromDate},
+					#{notiTaskToDate},
+					DATE_FORMAT(CURDATE(),'%Y%m%d')
+				);
+	</insert>
+
+	<update id="updateNotification">
+				UPDATE Notification
+				SET 
+					confirmYn   = #{confirmYn},
+					updatedDate = now()
+				WHERE 1=1 
+<!-- 				  AND idUser    = #{idUser} -->
+			  <if test="idNotification != ''">
+				  	AND idNotification = #{idNotification} 
+			  </if>
+					AND userCode  = #{userCode}
+					AND	confirmYn != 'D'
+	</update>
+	<select id="selectDelayTaskNotiList" parameterType="searchVO" resultType="egovMap">
+		SELECT 
+			    a.unitCode,
+			    a.idTask,
+			    a.taskCode,
+			    b.psitnName as notiPsitnName,
+			    b.unitName as notiUnitName,
+			    a.taskName as notiTaskName,
+			    a.fromDate as notiTaskFromDate,
+			    a.toDate as notiTaskToDate
+ 		FROM Task as a left join Unit as b
+ 			ON a.unitCode = b.unitCode
+		WHERE 1=1
+			AND a.toDate <![CDATA[ < ]]> DATE_FORMAT(CURDATE(),'%Y%m%d')
+		    AND a.progress <![CDATA[ < ]]> 100
+			AND a.idTask IN (
+							SELECT idTask FROM TaskPartner
+								WHERE userCode = #{userCode}
+							)
+	</select>
+	<delete id="deleteNotification">
+
+			DELETE FROM Notification
+			WHERE 1=1
+				  AND idNotification=#{idNotification}
+  				  AND userCode  = #{userCode};
+	</delete>
+	
+</mapper>
